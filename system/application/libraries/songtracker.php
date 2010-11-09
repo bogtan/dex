@@ -25,6 +25,16 @@ class Songtracker {
 	function __construct()
 	{
 		$this->CI =& get_instance();
+		
+		// Load models
+		$this->CI->load->model('song');
+		$this->CI->load->model('album');
+		$this->CI->load->model('episode');
+		$this->CI->load->model('show');
+		$this->CI->load->model('track');
+		$this->CI->load->model('log');
+		$this->CI->load->model('artist');
+		
 		$this->CI->load->helper('url');
 		$this->initialize_lastfm();
 		$this->episode_id = $this->CI->uri->segment(4);
@@ -75,24 +85,23 @@ class Songtracker {
 						'episode_start' => $start, 
 						'episode_stop' => $stop, 
 						'show_id' => $_POST['show_id']);
-		$str = $this->CI->db->insert_string('music_episodes', $data); 
-		$this->CI->db->query($str);
+		$this->CI->db->insert('episodes', $data); 
 		echo $this->CI->db->insert_id();
 	}
 	function load_data( $param, $type = 'playlist' )
 	{
 		if($type=='track')
 		{
-			$this->CI->db->join("music_playlists AS p ","p.song_id = s.song_id", "INNER");
-			$this->CI->db->where("p.playlist_track_id",$param);
-			$this->CI->db->order_by("p.sort_order","ASC");
+			$this->CI->db->join("tracks ","tracks.song_id = s.song_id", "INNER");
+			$this->CI->db->where("tracks.playlist_track_id",$param);
+			$this->CI->db->order_by("tracks.sort_order","ASC");
 		}
 		elseif($type=='playlist')
 		{
-			$this->CI->db->join("music_playlists AS p ", "p.song_id = s.song_id", "inner");
-			$this->CI->db->where("p.episode_id",$param);
-			$this->CI->db->where("p.status",1);
-			$this->CI->db->order_by("p.sort_order","ASC");
+			$this->CI->db->join("tracks ", "tracks.song_id = s.song_id", "inner");
+			$this->CI->db->where("tracks.episode_id",$param);
+			$this->CI->db->where("tracks.status",1);
+			$this->CI->db->order_by("tracks.sort_order","ASC");
 		}
 		elseif($type=='song')
 		{
@@ -100,15 +109,15 @@ class Songtracker {
 		}
 		if($type!="song")
 		{
-			$this->CI->db->select("p.playlist_track_id, p.episode_id, p.sort_order, p.date_added, p.status,s.song_id, s.song_title,  s.song_track, a.artist_id, a.artist_name, r.album_id, r.album_title, r.album_date, r.label_id");
+			$this->CI->db->select("tracks.playlist_track_id, tracks.episode_id, tracks.sort_order, tracks.date_added, tracks.status,s.song_id, s.song_title,  s.song_track, a.artist_id, a.artist_name, albums.id, albums.album_title, albums.album_date, albums.label_id");
 		}
 		else
 		{
-			$this->CI->db->select("s.song_id, s.song_title,  s.song_track, a.artist_id, a.artist_name, r.album_id, r.album_title, r.album_date, r.label_id");
+			$this->CI->db->select("s.song_id, s.song_title,  s.song_track, a.artist_id, a.artist_name, albums.id, albums.album_title, albums.album_date, albums.label_id");
 		}
-		$this->CI->db->from("music_songs AS s ");
+		$this->CI->db->from("songs ");
 		$this->CI->db->join("music_artists AS a ","s.artist_id = a.artist_id", "inner");
-		$this->CI->db->join("music_albums AS r ","r.album_id=s.album_id", "left");
+		$this->CI->db->join("albums","albums.id=s.album_id", "left");
 		$query = $this->CI->db->get();
 
 		if($type!='playlist')
@@ -161,18 +170,18 @@ class Songtracker {
 		if ( $type == "count" )
 			$this->CI->db->limit(($param_2+$param_1), $param_2);
 		elseif ($type == "dates")
-			$this->CI->db->where("l.log_time BETWEEN '".date("Y-m-d H:i:s", strtotime($param_1))."' AND '".date("Y-m-d H:i:s", strtotime($param_2))."'");
-		$this->CI->db	->select("l.log_id, l.log_time, l.playlist_track_id, p.song_id, s.song_title, a.artist_id, a.artist_name, al.album_id, al.album_title, p.episode_id")
-				->from('music_log AS l ')
-				->join('music_playlists AS p ', 'l.playlist_track_id = p.playlist_track_id')
-				->join('music_songs AS s ', 'p.song_id = s.song_id')
-				->join('music_artists AS a ', 's.artist_id = a.artist_id')
-				->join('music_albums AS al ', 's.album_id = al.album_id', 'left');
+			$this->CI->db->where("logs.created BETWEEN '".date("Y-m-d H:i:s", strtotime($param_1))."' AND '".date("Y-m-d H:i:s", strtotime($param_2))."'");
+		$this->CI->db	->select("logs.id, logs.created, logs.track_id, tracks.song_id, songs.title, artists.id AS artist_id, artists.name AS artist_name, albums.id AS album_id, albums.title AS album_title, tracks.episode_id")
+				->from('logs')
+				->join('tracks', 'logs.track_id = tracks.id')
+				->join('songs', 'tracks.song_id = songs.id')
+				->join('artists', 'songs.artist_id = artists.id')
+				->join('albums', 'songs.album_id = albums.id', 'left');
 		
 		if($order_by == "asc")
-			$this->CI->db->order_by('l.log_id', 'ASC');
+			$this->CI->db->order_by('logs.id', 'ASC');
 		else
-			$this->CI->db->order_by('l.log_id', 'DESC');
+			$this->CI->db->order_by('logs.id', 'DESC');
 		$query = $this->CI->db->get();
 		return $query->result_array();
 	}
@@ -316,7 +325,7 @@ class Songtracker {
 			if ( count($this->albums)==1 )
 			{
 				// Check to see if album exists.
-				$existing_album = 	$this->CI->db->query("SELECT * FROM music_albums WHERE album_title= ? AND artist_id = ?", 
+				$existing_album = 	$this->CI->db->query("SELECT * FROM albums WHERE album_title= ? AND artist_id = ?", 
 												array(	$this->albums[0]['name'], 
 														$this->artist_id));
 				
@@ -777,9 +786,9 @@ class Songtracker {
 		
 		if ($type == "song")
 		{
-			$query = "SELECT * FROM music_songs AS s 
+			$query = "SELECT * FROM songs 
 					INNER JOIN music_artists AS a ON a.artist_id = s.artist_id
-					LEFT JOIN music_albums AS l ON s.album_id = l.album_id";
+					LEFT JOIN albums AS l ON s.album_id = l.album_id";
 			if ( isset($artist)&&$artist!="" )
 				 $query .= " WHERE artist_name= ? ";
 				 $data[] = $artist;
@@ -845,7 +854,7 @@ class Songtracker {
 		{
 			$str = array("album_title"=>$array['name'], "artist_id"=>$artist_id, "flag"=>$flag, "date_added"=>date("Y-m-d H:i:s"));
 			if($array['releasedate']!="") $str['album_date'] = date("Y-m-d",$array['releasedate']);
-			$this->CI->db->insert('music_albums', $str);
+			$this->CI->db->insert('albums', $str);
 			$album_id = $this->CI->db->insert_id();
 			$update = array("album_id"=>$album_id);
 			$this->CI->db->where('song_id', $this->song['song_id'])->update('music_songs', $update);
@@ -861,7 +870,7 @@ class Songtracker {
 			{
 				$str = array("album_title"=>$array['name'], "artist_id"=>$artist_id, "flag"=>$flag, "date_added"=>date("Y-m-d H:i:s"));
 				if($array['releasedate']!="") $str['album_date'] = date("Y-m-d",$array['releasedate']);
-				$query = $this->CI->db->insert_string('music_albums',$str);
+				$query = $this->CI->db->insert_string('albums',$str);
 				$this->CI->db->query($query);
 				$album_id = $this->CI->db->insert_id();
 				$i=1;
@@ -897,8 +906,9 @@ class Songtracker {
 	}
 	function save_to_playlist ()
 	{
-		$sort_query = $this->CI->db->query("SELECT * FROM music_playlists WHERE episode_id= ? ORDER BY sort_order DESC",
-									array(	$this->episode_id ) );
+		$sort_query = $this->CI->db->where('episode_id', $this->episode_id)
+				 			->order_by('sort_order', 'desc');
+		 					->get('tracks');
 		if ($sort_query->num_rows() > 0)
 		{
 		   $row = $sort_query->row();
@@ -907,7 +917,7 @@ class Songtracker {
 		else $sort = 0;
 
 		$str = array("song_id"=>$this->song_id, "episode_id"=>$this->episode_id, "date_added"=>date("Y-m-d H:i:s"), "sort_order"=>$sort);
-		$query = $this->CI->db->insert_string('music_playlists',$str);
+		$query = $this->CI->db->insert_string('tracks',$str);
 		$this->CI->db->query($query);	
 		$track_id = $this->CI->db->insert_id();
 		$this->track = $this->load_data($track_id,'track');
@@ -915,9 +925,9 @@ class Songtracker {
 	}
 	function save_to_log ()
 	{
-		$data = array(	"playlist_track_id"=>$this->track['playlist_track_id'] );
-		$insertion = $this->CI->db->insert_string("music_log", $data);
-		$this->CI->db->query($insertion);
+		$this->CI->db->insert("logs", array(
+			"track_id"=>$this->track['playlist_track_id'] 
+		));
 	}
 	
 	
@@ -1060,7 +1070,7 @@ class Songtracker {
 				// update the song table
 				$this->CI->db->query($this->CI->db->update_string('music_songs',$data, $where));
 				// update the album table
-				$this->CI->db->query($this->CI->db->update_string('music_albums',$data, $where));
+				$this->CI->db->query($this->CI->db->update_string('albums',$data, $where));
 				// delete invalid artist row
 				$this->CI->db->query("DELETE FROM music_artists WHERE artist_id=".$invalid);
 				break;
@@ -1121,7 +1131,7 @@ class Songtracker {
 		$order = explode(",",$_POST['order']);
 		foreach($order as $key=>$val)
 		{
-			$this->CI->db->query("UPDATE music_playlists SET sort_order= ? WHERE playlist_track_id= ?",
+			$this->CI->db->query("UPDATE tracks SET sort_order= ? WHERE playlist_track_id= ?",
 						array( $key, $val));
 		}
 	}
@@ -1150,12 +1160,12 @@ class Songtracker {
 	function reset_db()
 	{
 		$this->CI->db->query("DELETE FROM music_songs");
-		$this->CI->db->query("DELETE FROM music_albums");
-		$this->CI->db->query("DELETE FROM music_playlists");
+		$this->CI->db->query("DELETE FROM albums");
+		$this->CI->db->query("DELETE FROM tracks");
 	}
 	function remove_log()
 	{
-		$this->CI->db->query("DELETE FROM music_log WHERE log_id=".$_POST['log_id']);
+		$this->CI->db->where('id',$_POST['log_id'])->delete('logs');
 	}
 	function delete_artist()
 	{
@@ -1166,11 +1176,11 @@ class Songtracker {
 											array($_POST['artist_id']));
 				$songs = $songs_query->num_rows();
 				
-				$albums_query = $this->CI->db->query("SELECT * FROM music_albums WHERE artist_id= ?", 
+				$albums_query = $this->CI->db->query("SELECT * FROM albums WHERE artist_id= ?", 
 											array($_POST['artist_id']));
 				$albums= $albums_query->num_rows();
 				
-				$playlists_query = $this->CI->db->query("SELECT * FROM music_playlists AS p INNER JOIN music_songs AS s ON s.song_id = p.song_id WHERE artist_id= ?", 
+				$playlists_query = $this->CI->db->query("SELECT * FROM tracks INNER JOIN songs ON s.song_id = tracks.song_id WHERE artist_id= ?", 
 											array($_POST['artist_id']));
 				$playlists= $playlists_query->num_rows();
 				echo "<p>Deleting this artist will also delete:</p>";
@@ -1195,16 +1205,16 @@ class Songtracker {
 				break;
 			case "delete":
 				$this->CI->db->delete('music_exceptions', array('output'=>$_POST['artist_id']));
-				$this->CI->db->query("DELETE FROM music_albums WHERE artist_id = ?",array($_POST['artist_id']));
+				$this->CI->db->query("DELETE FROM albums WHERE artist_id = ?",array($_POST['artist_id']));
 				$this->CI->db->query("DELETE FROM music_artists WHERE artist_id = ?",array($_POST['artist_id']));
-				$tracks_query = $this->CI->db->query("SELECT * FROM music_playlists AS p INNER JOIN music_songs AS s ON p.song_id = s.song_id WHERE s.artist_id = ?",array($_POST['artist_id']));
+				$tracks_query = $this->CI->db->query("SELECT * FROM tracks INNER JOIN songs ON tracks.song_id = s.song_id WHERE s.artist_id = ?",array($_POST['artist_id']));
 				$tracks = array();
 				foreach ( $tracks_array->result_array() as $row)
 				{
 					$tracks[] = $row['playlist_track_id'];
 				}
 				foreach ( $tracks as $val)
-					$this->CI->db->query("DELETE FROM music_playlists WHERE playlist_track_id = ?", array($val));
+					$this->CI->db->query("DELETE FROM tracks WHERE playlist_track_id = ?", array($val));
 				break;
 		}
 	}
@@ -1289,7 +1299,7 @@ class Songtracker {
 	}
 	function delete_song( $id )
 	{
-		$p = $this->CI->db->where('song_id',$id)->get('music_playlists');
+		$p = $this->CI->db->where('song_id',$id)->get('tracks');
 		$playlists = $p->num_rows;
 		if($playlists==0)
 		{
@@ -1305,7 +1315,7 @@ class Songtracker {
 	{
 		if(empty($id)) return false;
 		
-		$album_query = $this->CI->db->from("music_albums AS L ")
+		$album_query = $this->CI->db->from("albums AS L ")
 								->join("music_artists AS A ", "A.artist_id = L.artist_id")
 								->where('album_id', $id)
 								->get();
@@ -1701,22 +1711,24 @@ class Songtracker {
 	{
 		if ( $stop == NULL ) $stop = date("Y-m-d H:i:s");
 		
-		if ($type == "song") $type = "p.song_id";
-		elseif($type == "album") $type = "al.album_id";
-		elseif($type == "artist") $type = "a.artist_id";
+		if ($type == "song") $type = "tracks.song_id";
+		elseif($type == "album") $type = "albums.id";
+		elseif($type == "artist") $type = "artists.id";
 		
 		
-		$where = "WHERE ( l.log_time BETWEEN '".date("Y-m-d H:i:s", strtotime($start))."' AND '".date("Y-m-d H:i:s")."' )";
+		$where = "WHERE ( logs.created BETWEEN '".date("Y-m-d H:i:s", strtotime($start))."' AND '".date("Y-m-d H:i:s")."' )";
 		$where .= " AND ( ".$type." = ".$id." )";
-		$log_query = $this->CI->db->query("SELECT l.log_id, l.log_time, l.playlist_track_id
-                    			FROM music_log AS l
-                   			INNER JOIN music_playlists AS p ON l.playlist_track_id = p.playlist_track_id
-                    			INNER JOIN music_episodes AS e ON p.episode_id = e.episode_id
-                    			INNER JOIN music_shows AS sh ON sh.show_id = e.show_id
-                    			INNER JOIN music_songs AS s ON p.song_id = s.song_id
-                    			INNER JOIN music_artists AS a ON s.artist_id = a.artist_id
-                    			INNER JOIN music_albums AS al ON s.album_id = al.album_id ".$where."
-                    			ORDER BY l.log_id DESC");
+		$log_query = $this->CI->db
+				->select("logs.id, logs.created, logs.track_id")
+				->join("tracks", "logs.track_id = tracks.id", "inner")
+				->join("episodes","tracks.episode_id = episodes.id", "inner")
+				->join("shows","shows.id = episodes.show_id", "inner")
+				->join("songs","tracks.song_id = songs.id","inner")
+				->join("artists", "songs.artist_id = artists.id", "inner")
+				->join("albums", "albums.id = songs.album_id", "inner")
+				->where($where)
+				->order_by("logs.id", "desc")
+                    	->get("logs");
 		return $log_query->num_rows;
 	}
 	function album_url( $id = NULL, $show_path = FALSE )
@@ -1739,7 +1751,7 @@ class Songtracker {
 		{
 			if($val['type']=="song")
 			{
-				$iq = $this->CI->db->where('song_id', $val['item_id'])->get('music_songs');
+				$iq = $this->CI->db->where('song_id', $val['item_id'])->get('songs');
 				$ir = $iq->row_array();
 				$val['item'] = $ir['song_title'];
 			}
@@ -1751,7 +1763,7 @@ class Songtracker {
 			}
 			elseif($val['type'] == "album")
 			{
-				$iq = $this->CI->db->where('album_id', $val['item_id'])->get('music_albums');
+				$iq = $this->CI->db->where('album_id', $val['item_id'])->get('albums');
 				$ir = $iq->row_array();
 				$val['item'] = $ir['album_title'];
 			}

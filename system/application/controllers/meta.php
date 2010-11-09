@@ -163,7 +163,7 @@ var $user_id;
 			$this->data['title'] = "Albums";
 			
 			$album_info = $this->db->query("SELECT L.*, A.artist_id, A.artist_name
-									FROM music_albums AS L
+									FROM albums AS L
 									JOIN music_artists AS A ON A.artist_id = L.artist_id
 									ORDER BY album_title");
 			$this->data['albums'] = $album_info->result_array();
