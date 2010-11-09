@@ -13,37 +13,41 @@ SET SQL_MODE="NO_AUTO_VALUE_ON_ZERO";
 -- Database: `wybc`
 --
 
+/**
+*	New Tables
+
 CREATE TABLE `albums` (
-`id` INT( 10 ) NOT NULL AUTO_INCREMENT PRIMARY KEY ,
+`id` INT( 11 ) NOT NULL AUTO_INCREMENT PRIMARY KEY ,
 `title` VARCHAR( 150 ) NOT NULL ,
-`date` DATE NOT NULL ,
 `description` VARCHAR( 1000 ) NOT NULL ,
-`artist_id` INT( 10 ) NOT NULL ,
+`release_date` DATE NOT NULL ,
+`artist_id` INT( 11 ) NOT NULL ,
 `created` TIMESTAMP NOT NULL ,
 INDEX ( `artist_id` )
 ) ENGINE = MYISAM CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 CREATE TABLE `artists` (
-`id` INT( 10 ) NOT NULL AUTO_INCREMENT PRIMARY KEY ,
+`id` INT( 11 ) NOT NULL AUTO_INCREMENT PRIMARY KEY ,
 `name` VARCHAR( 100 ) NOT NULL ,
 `description` VARCHAR( 1000 ) NOT NULL ,
+`listeners` INT( 11 ) NOT NULL ,
 `lastfm_url` VARCHAR( 100 ) NOT NULL ,
-`listeners` INT( 15 ) NOT NULL ,
 `validated` TIMESTAMP NOT NULL ,
 `created` TIMESTAMP NOT NULL
 ) ENGINE = MYISAM CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 CREATE TABLE `songs` (
-`id` INT( 10 ) NOT NULL AUTO_INCREMENT PRIMARY KEY ,
+`id` INT( 11 ) NOT NULL AUTO_INCREMENT PRIMARY KEY ,
 `title` VARCHAR( 255 ) NOT NULL ,
 `track_number` INT( 3 ) NOT NULL ,
 `musicbrainz_id` VARCHAR( 100 ) NOT NULL ,
-`artist_id` INT( 10 ) NOT NULL ,
-`album_id` INT( 10 ) NOT NULL ,
+`artist_id` INT( 11 ) NOT NULL ,
+`album_id` INT( 11 ) NOT NULL ,
 `created` TIMESTAMP NOT NULL ,
 INDEX ( `artist_id` , `album_id` )
 ) ENGINE = MYISAM CHARACTER SET utf8 COLLATE utf8_general_ci;
 
+*/
 -- --------------------------------------------------------
 
 --
@@ -82,20 +86,6 @@ CREATE TABLE IF NOT EXISTS `ci_sessions` (
   `user_data` text NOT NULL,
   PRIMARY KEY (`session_id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
-
---
--- Dumping data for table `ci_sessions`
---
-
-INSERT INTO `ci_sessions` (`session_id`, `ip_address`, `user_agent`, `last_activity`, `user_data`) VALUES
-('0426acb7f5936406a97b450a4a270d56', '0.0.0.0', 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.6; en', 1283813701, ''),
-('35d4e1c420ed67ee11ba30f8006782b6', '0.0.0.0', 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.6; en', 1283539526, 'a:7:{s:9:"logged_in";s:1:"1";s:5:"roles";s:24:"3&4&5&6&9&10&11&12&13&14";s:5:"level";s:3:"100";s:7:"user_id";s:2:"85";s:9:"member_id";s:3:"373";s:5:"email";s:24:"brandon.jackson@yale.edu";s:8:"username";s:15:"Brandon Jackson";}'),
-('88097fb1d8379980a0c0e40f567c6752', '0.0.0.0', 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_3; ', 1277931947, ''),
-('f14f611a1be93576b17d65a89b9a81a1', '0.0.0.0', 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.6; en', 1280009058, 'a:7:{s:9:"logged_in";s:1:"1";s:5:"roles";s:24:"3&4&5&6&9&10&11&12&13&14";s:5:"level";s:3:"100";s:7:"user_id";s:2:"85";s:9:"member_id";s:3:"373";s:5:"email";s:24:"brandon.jackson@yale.edu";s:8:"username";s:15:"Brandon Jackson";}'),
-('2891e83a766b6161a42aa6cc1e47bf09', '0.0.0.0', 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.6; en', 1280774440, 'a:7:{s:9:"logged_in";s:1:"1";s:5:"roles";s:24:"3&4&5&6&9&10&11&12&13&14";s:5:"level";s:3:"100";s:7:"user_id";s:2:"85";s:9:"member_id";s:3:"373";s:5:"email";s:24:"brandon.jackson@yale.edu";s:8:"username";s:15:"Brandon Jackson";}'),
-('57b35a29cda3fb7256c88eff89c95865', '0.0.0.0', 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.6; en', 1282537378, 'a:7:{s:9:"logged_in";s:1:"1";s:5:"roles";s:24:"3&4&5&6&9&10&11&12&13&14";s:5:"level";s:3:"100";s:7:"user_id";s:2:"85";s:9:"member_id";s:3:"373";s:5:"email";s:24:"brandon.jackson@yale.edu";s:8:"username";s:15:"Brandon Jackson";}'),
-('3380894859d2e20a7d2d449c1fbff8a0', '0.0.0.0', 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.6; en', 1282950875, 'a:7:{s:9:"logged_in";s:1:"1";s:5:"roles";s:24:"3&4&5&6&9&10&11&12&13&14";s:5:"level";s:3:"100";s:7:"user_id";s:2:"85";s:9:"member_id";s:3:"373";s:5:"email";s:24:"brandon.jackson@yale.edu";s:8:"username";s:15:"Brandon Jackson";}'),
-('6c56ab1d3c2727c4485480e183abf750', '0.0.0.0', 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.6; en', 1276143868, 'a:7:{s:9:"logged_in";s:1:"1";s:5:"roles";s:24:"3&4&5&6&9&10&11&12&13&14";s:5:"level";s:3:"100";s:7:"user_id";s:2:"85";s:9:"member_id";s:3:"373";s:5:"email";s:24:"brandon.jackson@yale.edu";s:8:"username";s:15:"Brandon Jackson";}');
 
 -- --------------------------------------------------------
 
