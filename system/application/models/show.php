@@ -8,6 +8,12 @@
 class Show extends DataMapper {
 	
 	/**
+	*	CodeIgniter Super Object
+	*	@var object $CI
+	*/
+	protected $CI;
+
+	/**
 	*	Has-One Relationships
 	*	@var array $has_one
 	*/
@@ -33,6 +39,7 @@ class Show extends DataMapper {
 	*/
 	function __construct( $id = NULL ) 
 	{
-		parent::__construct( $data );
+		parent::__construct( $id );
+		$this->CI =& get_instance();
 	}
 }
