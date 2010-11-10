@@ -61,33 +61,33 @@ class Songtracker {
 	{
 		if($type=='track')
 		{
-			$this->CI->db->join("tracks ","tracks.song_id = s.song_id", "INNER");
-			$this->CI->db->where("tracks.playlist_track_id",$param);
-			$this->CI->db->order_by("tracks.sort_order","ASC");
+			$this->CI->db->join("tracks ","tracks.song_id = songs.id", "INNER")
+					 ->where("tracks.id",$param)
+					 ->order_by("tracks.sort_order","ASC");
 		}
 		elseif($type=='playlist')
 		{
-			$this->CI->db->join("tracks ", "tracks.song_id = s.song_id", "inner");
-			$this->CI->db->where("tracks.episode_id",$param);
-			$this->CI->db->where("tracks.status",1);
-			$this->CI->db->order_by("tracks.sort_order","ASC");
+			$this->CI->db->join("tracks ", "tracks.song_id = songs.id", "inner")
+					 ->where("tracks.episode_id",$param)
+					 ->where("tracks.status",1)
+					 ->order_by("tracks.sort_order","ASC");
 		}
 		elseif($type=='song')
 		{
-			$this->CI->db->where("s.song_id",$param);
+			$this->CI->db->where("songs.id",$param);
 		}
+		
 		if($type!="song")
 		{
-			$this->CI->db->select("tracks.playlist_track_id, tracks.episode_id, tracks.sort_order, tracks.date_added, tracks.status,s.song_id, s.song_title,  s.song_track, a.artist_id, a.artist_name, albums.id, albums.album_title, albums.album_date, albums.label_id");
+			$this->CI->db->select("tracks.id, tracks.episode_id, tracks.sort_order, tracks.created, tracks.status,songs.id, songs.title,  songs.track_number, artists.id, artists.name, albums.id, albums.title, albums.release_date");
 		}
 		else
 		{
-			$this->CI->db->select("s.song_id, s.song_title,  s.song_track, a.artist_id, a.artist_name, albums.id, albums.album_title, albums.album_date, albums.label_id");
+			$this->CI->db->select("songs.id, songs.title,  songs.track_number, artists.id, artists.name, albums.id, albums.title, albums.release_date");
 		}
-		$this->CI->db->from("songs ");
-		$this->CI->db->join("music_artists AS a ","s.artist_id = a.artist_id", "inner");
-		$this->CI->db->join("albums","albums.id=s.album_id", "left");
-		$query = $this->CI->db->get();
+		$this->CI->db->join("artists","songs.artist_id = artists.id", "inner")
+		 		 ->join("albums","albums.id=songs.album_id", "left");
+		$query = $this->CI->db->get("songs");
 
 		if($type!='playlist')
 		{
@@ -213,7 +213,7 @@ class Songtracker {
 		$this->artist_id = $this->find_artist( $_POST['artist'] );
 		
 		// load database info on artist, save
-		$artist_query = $this->CI->db->where('artist_id', $this->artist_id)->get('music_artists');
+		$artist_query = $this->CI->db->where('id', $this->artist_id)->get('artists');
 		$this->artist = $artist_query->row_array();
 
 		////////////////////////////
@@ -256,9 +256,9 @@ class Songtracker {
 			if ( count($this->albums)==1 )
 			{
 				// Check to see if album exists.
-				$existing_album = 	$this->CI->db->query("SELECT * FROM albums WHERE album_title= ? AND artist_id = ?", 
-												array(	$this->albums[0]['name'], 
-														$this->artist_id));
+				$existing_album = $this->CI->db->where('title',$this->albums[0]['name'])
+									 ->where('artist_id', $this->artist_id)
+									 ->get('albums');
 				
 				// If yes, add album_id to song DB entry
 				if ( $existing_album->num_rows==1 )
@@ -273,14 +273,13 @@ class Songtracker {
 				// If not, create album, then add album_id to song DB entry
 				else
 				{
-					$album_id = $this->save_album($this->albums[0], $this->artist_id, 0);
+					$album_id = $this->save_album($this->albums[0], $this->artist_id);
 					
-					if (isset($this->duplicate_song_id)&&$this->duplicate_song_id!="")
+					if(!empty($this->duplicate_song_id))
 					{
-						$this->CI->db->query("DELETE FROM music_songs WHERE song_id = ?",
-									array($this->song_id));
-						$this->CI->db->query("UPDATE music_songs SET song_id= ? WHERE song_id = ?",
-									array($this->song_id, $this->duplicate_song_id));
+						$this->CI->db->where('id',$this->song_id)->delete('songs');
+						$this->CI->db->where('id',$this->duplicate_song_id)->update('music_songs', array('id'=>$this->song_id));
+						//query("UPDATE music_songs SET song_id= ? WHERE song_id = ?", array($this->song_id, $this->duplicate_song_id));
 					}
 				
 				}
@@ -816,7 +815,6 @@ class Songtracker {
 		else
 		{
 			$tracklisting = $this->musicbrains_query('release/'.$mbid,array("inc"=>"tracks"));
-			//echo $tracklisting->asXML();
 			
 			// test for multiple disks.
 			if(strpos((string) $tracklisting->release->title, "(disc")==false)
@@ -1002,32 +1000,17 @@ class Songtracker {
 			{
 				// If so, change all references to that artist id to the existing record's
 				$row = $existing->row();
-				$this->merge("artist",$row->artist_id, $val['id']);
+				$this->CI->artist->merge($row->artist_id, $val['id']);
 			}
 		}
 	}
+	
+	/**
+	*	@deprecated
+	*/
 	function merge($object, $valid, $invalid)
 	{
-		switch($object)
-		{
-			case "artist":
-			
-				//Add an exception so this never happens again.
-				$name_query = $this->CI->db->query("SELECT artist_name FROM music_artists WHERE artist_id = ?", array($invalid));
-				$name = $name_query->row(); 
-				$exception_data = array("type"=>"artist-to-id", "input"=>$name->artist_name, "output"=>$valid); 
-				$this->CI->db->query($this->CI->db->insert_string("music_exceptions", $exception_data));
-				
-				$data = array ("artist_id"=>$valid);
-				$where = "artist_id=".$invalid;
-				// update the song table
-				$this->CI->db->query($this->CI->db->update_string('music_songs',$data, $where));
-				// update the album table
-				$this->CI->db->query($this->CI->db->update_string('albums',$data, $where));
-				// delete invalid artist row
-				$this->CI->db->query("DELETE FROM music_artists WHERE artist_id=".$invalid);
-				break;
-		}
+		$this->CI->artist->merge($valid, $invalid);
 	}
 			
 	private function musicbrains_query( $type, $filters)
@@ -1041,7 +1024,6 @@ class Songtracker {
 			$val = str_replace(" ","+",$val);
 			$url .= "&".$key."=".$val;
 		}
-		//echo $url."\n";
 		$xml = new SimpleXMLElement($url, NULL, TRUE);
 		$this->CI->benchmark->mark($marker.'end');
 		$this->CI->benchmark->elapsed_time($marker.'start', $marker.'end');
@@ -1094,6 +1076,10 @@ class Songtracker {
 	{
 		$this->CI->db->where('id',$_POST['log_id'])->delete('logs');
 	}
+	
+	/*
+	*	move to artist model
+	*/
 	function delete_artist()
 	{
 		switch($_POST['type'])
@@ -1128,7 +1114,7 @@ class Songtracker {
 				echo "</select>";
 				break;
 			case "merge":
-				$this->merge("artist",$_POST['new_artist_id'], $_POST['artist_id']);
+				$this->CI->artist->merge($_POST['new_artist_id'], $_POST['artist_id']);
 				break;
 			case "delete":
 				$this->CI->db->delete('music_exceptions', array('output'=>$_POST['artist_id']));
@@ -1229,12 +1215,12 @@ class Songtracker {
 		$playlists = $p->num_rows;
 		if($playlists==0)
 		{
-			$this->CI->db->where('song_id', $id)->delete('music_songs');
+			$this->CI->db->where('id', $id)->delete('songs');
 		}
 		else
-		{	
+		{
 			$update = array ( "album_id"=>NULL);
-			$this->CI->db->where('song_id', $id)->update('music_songs', $update);
+			$this->CI->db->where('id', $id)->update('songs', $update);
 		}
 	}
 	function album_info( $id, $tracks = TRUE, $stats = TRUE )
