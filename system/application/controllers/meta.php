@@ -230,14 +230,8 @@ var $user_id;
 	{
 		switch($this->uri->segment(3))
 		{
-			case "get_shows":
-				return $this->songtracker->get_shows();
-				break;
 			case "get_episodes":
 				return $this->songtracker->get_episodes();
-				break;
-			case "new_episode":
-				return $this->songtracker->new_episode();
 				break;
 			case "artist_search":
 				$_POST['type'] = 'artist';
