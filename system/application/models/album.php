@@ -31,7 +31,7 @@ class Album extends DataMapper {
 	*	
 	*	@param mixed $data
 	*/
-	function __construct( $data = NULL ) 
+	function __construct( $id = NULL ) 
 	{
 		parent::__construct( $data );
 	}	
