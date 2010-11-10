@@ -69,4 +69,26 @@ class Util
 		}
       		return true;
 	}
+	
+	static function array_sorter(&$arr, $key, $order = SORT_DESC)
+	{ 
+  		$sort_col = array(); 
+  		foreach ($arr as $sub) $sort_col[] = $sub[$key]; 
+  		array_multisort($sort_col, SORT_DESC, SORT_REGULAR, $arr); 
+	}
+	
+	static function array_duplicate_remover( $array, $remove_key = 'name' )
+	{
+		foreach ( $array as $key=>$val )
+		{
+			foreach ( $array as $key2=>$val2 )
+			{
+				if ( ( $key!=$key2 ) && ($val[$remove_key] == $val2[$remove_key] ) )
+				{
+					unset($array[$key]);
+				}
+			}	
+		}
+		return $array;
+	}
 }
